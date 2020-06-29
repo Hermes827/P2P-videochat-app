@@ -2,25 +2,34 @@ import React from 'react';
 import logo from './logo.svg';
 import './App.css';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+class App extends React.Component{
+
+constructor(){
+  super()
+
+  this.videoRef = React.createRef()
+}
+
+ componentDidMount(){
+   navigator.mediaDevices.getUserMedia({video: true, audio: true})
+     .then(this.handleVideo)
+     .catch(this.videoError)
+ }
+
+ handleVideo = (stream) => {
+   this.videoRef.current.srcObject = stream
+ }
+
+ videoError = (err) => {
+   alert(err.name)
+ }
+
+ render() {
+   return (
+     <video id="video-chat" autoPlay="true" ref={this.videoRef}>
+     </video>
+   )
+ }
 }
 
 export default App;
