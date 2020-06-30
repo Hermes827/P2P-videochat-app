@@ -1,161 +1,235 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
-import adapter from 'webrtc-adapter';
-let localStream;
-let remoteStream;
-let localPeerConnection;
-let remotePeerConnection;
-let startTime = null;
+import React from "react";
+import "webrtc-adapter";
 
-class App extends React.Component{
-
-constructor(){
-  super()
-
-  // const localVideo = document.getElementById('localVideo');
-  // const remoteVideo = document.getElementById('remoteVideo');
-  this.localRef = React.createRef()
-  this.remoteRef = React.createRef()
-  this.videoRef = React.createRef()
-  this.turnOnVideo = this.turnOnVideo.bind(this)
-  this.handleVideo = this.handleVideo.bind(this)
-  this.videoError = this.videoError.bind(this)
-  // this.handleConnection = this.handleConnection.bind(this)
-  this.callAction = this.callAction.bind(this)
+// copied from common.js https://github.com/webrtc/samples/blob/gh-pages/src/js/common.js
+function trace(arg) {
+    var now = (window.performance.now() / 1000).toFixed(3);
+    console.log(now + ": ", arg);
 }
 
- turnOnVideo(){
-   navigator.mediaDevices.getUserMedia({video: true})
-     .then(this.handleVideo)
-     .catch(this.videoError)
- }
-    // navigator.mediaDevices.getUserMedia({video: true, audio: true})
-    // I have audio temporarily disabled because it keeps making a weird sound
+class WebRTCPeerConnection extends React.Component {
+    state = {
+        startDisabled: false,
+        callDisabled: true,
+        hangUpDisabled: true,
+        servers: null,
+        pc1: null,
+        pc2: null,
+        localStream: null
+    };
 
- handleVideo(stream){
-   this.videoRef.current.srcObject = stream
-   localStream = stream
- }
+    localVideoRef = React.createRef();
+    remoteVideoRef = React.createRef();
 
- videoError(err){
-   alert(err.name)
- }
+    start = () => {
+        this.setState({
+            startDisabled: true
+        });
+        navigator.mediaDevices
+            .getUserMedia({
+                audio: true,
+                video: true
+            })
+            .then(this.gotStream)
+            .catch(e => alert("getUserMedia() error:" + e.name));
+    };
+    gotStream = stream => {
+        this.localVideoRef.current.srcObject = stream;
+        this.setState({
+            callDisabled: false,
+            localStream: stream
+        });
+    };
+    gotRemoteStream = event => {
+        let remoteVideo = this.remoteVideoRef.current;
 
- gotRemoteMediaStream(event) {
-   const mediaStream = event.stream;
-   // remoteVideo.srcObject = mediaStream;
-   this.remoteRef.current.srcObject = mediaStream
-   // remoteStream = mediaStream;
-   // trace('Remote peer connection received remote stream.');
- }
+        if (remoteVideo.srcObject !== event.streams[0]) {
+            remoteVideo.srcObject = event.streams[0];
+        }
+    };
 
- // function startAction() {
- //   startButton.disabled = true;
- //   navigator.mediaDevices.getUserMedia(mediaStreamConstraints)
- //     .then(gotLocalMediaStream).catch(handleLocalMediaStreamError);
- //   trace('Requesting local stream.');
- // }
+    call = () => {
+        this.setState({
+            callDisabled: true,
+            hangUpDisabled: false
+        });
+        let { localStream } = this.state;
 
- // function gotLocalMediaStream(mediaStream) {
- //   localVideo.srcObject = mediaStream;
- //   localStream = mediaStream;
- //   trace('Received local stream.');
- //   callButton.disabled = false;  // Enable call button.
- // }
+        // Ah, servers needs to be some sort of iceServer thing
+        // https://developer.mozilla.org/en-US/docs/Web/API/RTCIceServer
+        let servers = null,
+            pc1 = new RTCPeerConnection(servers), // what is servers??
+            pc2 = new RTCPeerConnection(servers);
 
- getOtherPeer(peerConnection) {
-   return (peerConnection === localPeerConnection) ?
-       remotePeerConnection : localPeerConnection;
- }
+        pc1.onicecandidate = e => this.onIceCandidate(pc1, e);
+        pc1.oniceconnectionstatechange = e => this.onIceStateChange(pc1, e);
 
- handleConnection(event) {
-   console.log("hello")
-   const peerConnection = event.target;
-   const iceCandidate = event.candidate;
+        pc2.onicecandidate = e => this.onIceCandidate(pc2, e);
+        pc2.oniceconnectionstatechange = e => this.onIceStateChange(pc2, e);
+        pc2.ontrack = this.gotRemoteStream;
 
-   if (iceCandidate) {
-     const newIceCandidate = new RTCIceCandidate(iceCandidate);
-     const otherPeer = this.getOtherPeer(peerConnection);
+        localStream
+            .getTracks()
+            .forEach(track => pc1.addTrack(track, localStream));
 
-     otherPeer.addIceCandidate(newIceCandidate)
-       // .then(() => {
-       //   handleConnectionSuccess(peerConnection);
-       // }).catch((error) => {
-       //   handleConnectionFailure(peerConnection, error);
-       // });
-     //
-     // trace(`${getPeerName(peerConnection)} ICE candidate:\n` +
-     //       `${event.candidate.candidate}.`);
-   }
- }
+        pc1
+            .createOffer({
+                offerToReceiveAudio: 1,
+                offerToReceiveVideo: 1
+            })
+            .then(this.onCreateOfferSuccess, error =>
+                console.error(
+                    "Failed to create session description",
+                    error.toString()
+                )
+            );
 
- callAction(e) {
-   // e.target.disabled = true;
-   // hangupButton.disabled = false;
-   //
-   // trace('Starting call.');
-   startTime = window.performance.now();
+        console.log("servers after call", servers);
 
-   // Get local media stream tracks.
-   // const videoTracks = localStream.getVideoTracks();
-   // const audioTracks = localStream.getAudioTracks();
-   // if (videoTracks.length > 0) {
-   //   trace(`Using video device: ${videoTracks[0].label}.`);
-   // }
-   // if (audioTracks.length > 0) {
-   //   trace(`Using audio device: ${audioTracks[0].label}.`);
-   // }
+        this.setState({
+            servers,
+            pc1,
+            pc2,
+            localStream
+        });
+    };
 
-   const servers = null;  // Allows for RTC server configuration.
+    onCreateOfferSuccess = desc => {
+        let { pc1, pc2 } = this.state;
 
-   // Create peer connections and add behavior.
-   localPeerConnection = new RTCPeerConnection(servers);
-   console.log(localPeerConnection)
-   this.handleConnection(localPeerConnection)
-   // console.log(typeof localPeerConnection)
+        pc1
+            .setLocalDescription(desc)
+            .then(
+                () =>
+                    console.log("pc1 setLocalDescription complete createOffer"),
+                error =>
+                    console.error(
+                        "pc1 Failed to set session description in createOffer",
+                        error.toString()
+                    )
+            );
 
-   // trace('Created local peer connection object localPeerConnection.');
+        pc2.setRemoteDescription(desc).then(
+            () => {
+                console.log("pc2 setRemoteDescription complete createOffer");
+                pc2
+                    .createAnswer()
+                    .then(this.onCreateAnswerSuccess, error =>
+                        console.error(
+                            "pc2 Failed to set session description in createAnswer",
+                            error.toString()
+                        )
+                    );
+            },
+            error =>
+                console.error(
+                    "pc2 Failed to set session description in createOffer",
+                    error.toString()
+                )
+        );
+    };
 
-   // localPeerConnection.addEventListener('icecandidate', this.handleConnection());
-   // localPeerConnection.addEventListener(
-   //   'iceconnectionstatechange', handleConnectionChange);
-   //
-   remotePeerConnection = new RTCPeerConnection(servers);
-   this.handleConnection(remotePeerConnection)
-   // trace('Created remote peer connection object remotePeerConnection.');
-   //
-   // remotePeerConnection.addEventListener('icecandidate', this.handleConnection());
-   // remotePeerConnection.addEventListener(
-   //   'iceconnectionstatechange', handleConnectionChange);
-   // remotePeerConnection.addEventListener('addstream', gotRemoteMediaStream);
-   //
-   // // Add local stream to connection and create offer to connect.
-   // localPeerConnection.addStream(localStream);
-   // trace('Added local stream to localPeerConnection.');
-   //
-   // trace('localPeerConnection createOffer start.');
-   // localPeerConnection.createOffer(offerOptions)
-   //   .then(createdOffer).catch(setSessionDescriptionError);
- }
+    onCreateAnswerSuccess = desc => {
+        let { pc1, pc2 } = this.state;
 
- render() {
-   return (
-     <div>
-     <video id="video-chat" autoPlay="true" ref={this.videoRef}>
-     </video>
-     <video id="video-chat" autoPlay="true" ref={this.videoRef}>
-     </video>
-     <video id="localVideo" autoplay playsinline ref={this.localRef}></video>
-     <video id="remoteVideo" autoplay playsinline ref={this.remoteRef}></video>
-     <button onClick={this.turnOnVideo}>turn on video</button>
-       <button id="startButton">Start</button>
-       <button id="callButton" onClick={this.callAction}>Call</button>
-       <button id="hangupButton">Hang Up</button>
-       {console.log(this.localRef)}
-     </div>
-   )
- }
+        pc1.setRemoteDescription(desc).then(
+            () => {
+                console.log("pc1 setRemoteDescription complete createAnswer");
+                console.log("servers after createAnswer", this.state.servers);
+            },
+            error =>
+                console.error(
+                    "pc1 Failed to set session description in onCreateAnswer",
+                    error.toString()
+                )
+        );
+
+        pc2
+            .setLocalDescription(desc)
+            .then(
+                () =>
+                    console.log(
+                        "pc2 setLocalDescription complete createAnswer"
+                    ),
+                error =>
+                    console.error(
+                        "pc2 Failed to set session description in onCreateAnswer",
+                        error.toString()
+                    )
+            );
+    };
+
+    onIceCandidate = (pc, event) => {
+        let { pc1, pc2 } = this.state;
+
+        let otherPc = pc === pc1 ? pc2 : pc1;
+
+        otherPc
+            .addIceCandidate(event.candidate)
+            .then(
+                () => console.log("addIceCandidate success"),
+                error =>
+                    console.error(
+                        "failed to add ICE Candidate",
+                        error.toString()
+                    )
+            );
+    };
+
+    onIceStateChange = (pc, event) => {
+        console.log("ICE state:", pc.iceConnectionState);
+    };
+
+    hangUp = () => {
+        let { pc1, pc2 } = this.state;
+
+        pc1.close();
+        pc2.close();
+
+        this.setState({
+            pc1: null,
+            pc2: null,
+            hangUpDisabled: true,
+            callDisabled: false
+        });
+    };
+
+    render() {
+        const { startDisabled, callDisabled, hangUpDisabled } = this.state;
+
+        return (
+            <div>
+                <video
+                    ref={this.localVideoRef}
+                    autoPlay
+                    muted
+                    style={{
+                        width: "240px",
+                        height: "180px"
+                    }}
+                />{" "}
+                <video
+                    ref={this.remoteVideoRef}
+                    autoPlay
+                    style={{
+                        width: "240px",
+                        height: "180px"
+                    }}
+                />
+                <div>
+                    <button onClick={this.start} disabled={startDisabled}>
+                        Start{" "}
+                    </button>{" "}
+                    <button onClick={this.call} disabled={callDisabled}>
+                        Call{" "}
+                    </button>{" "}
+                    <button onClick={this.hangUp} disabled={hangUpDisabled}>
+                        Hang Up{" "}
+                    </button>{" "}
+                </div>{" "}
+            </div>
+        );
+    }
 }
 
-export default App;
+export default WebRTCPeerConnection;
