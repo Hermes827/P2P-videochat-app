@@ -49,8 +49,18 @@
   border-radius: 0.5em;
   height: 40em;
   width: 40em;
-  background-color: white;
+  background-color: #E9ECEF;
 }
 
 .jumbotron {
+}
+
+.btn-container {
+  /* position: absolute; */
+  margin-top: 20em;
+}
+.videoDiv {
+  border-style: solid;
+  border-width: medium;
+  border-color: orange;
 }
