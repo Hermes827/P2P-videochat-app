@@ -1,5 +1,6 @@
 .App {
   text-align: center;
+  /* background-color: black; */
 }
 
 .App-logo {
@@ -35,4 +36,21 @@
   to {
     transform: rotate(360deg);
   }
+}
+
+.container {
+  text-align: center;
+}
+
+.makeCall {
+  border-style: solid;
+  border-color: black;
+  border-width: medium;
+  border-radius: 0.5em;
+  height: 40em;
+  width: 40em;
+  background-color: white;
+}
+
+.jumbotron {
 }
