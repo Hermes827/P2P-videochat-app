@@ -53,6 +53,8 @@
 }
 
 .jumbotron {
+  width: 50%;
+  margin: auto;
 }
 
 .btn-container {
@@ -60,7 +62,21 @@
   margin-top: 20em;
 }
 .videoDiv {
+  /* border-style: solid;
+  border-width: medium;
+  border-color: orange; */
+}
+
+.remoteVideo{
   border-style: solid;
   border-width: medium;
-  border-color: orange;
+  border-color: green;
+  float: left;
+  position: absolute;
+  /* z-index: 10; */
+  /* ^ not sure if needed or not */
+}
+
+.localVideo{
+  position: absolute;
 }
