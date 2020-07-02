@@ -4,6 +4,7 @@ import Container from 'react-bootstrap/Container'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import "webrtc-adapter";
+let localStream = null
 
 class MakeCall extends React.Component {
 
@@ -39,16 +40,11 @@ class MakeCall extends React.Component {
           className="localVideo"
             ref={this.localVideoRef}
             autoPlay
-
         />
         <video
             className="remoteVideo"
             ref={this.remoteVideoRef}
             autoPlay
-            style={{
-                width: "240px",
-                height: "180px"
-            }}
         />
         </div>
       )
@@ -73,6 +69,7 @@ class MakeCall extends React.Component {
     this.setState({
         localStream: stream
     });
+    localStream = stream
     this.connect()
     };
 
@@ -174,6 +171,8 @@ class MakeCall extends React.Component {
         callDisabled: false,
         videoElement: false
     });
+    localStream.getTracks()[0].stop();
+    this.props.return()
   };
 
   render(){

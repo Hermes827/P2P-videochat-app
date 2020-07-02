@@ -59,20 +59,24 @@
 
 .btn-container {
   /* position: absolute; */
-  margin-top: 20em;
+  margin-top: 34em;
 }
 .videoDiv {
   /* border-style: solid;
   border-width: medium;
   border-color: orange; */
+  width:10em;
 }
 
 .remoteVideo{
   border-style: solid;
   border-width: medium;
   border-color: green;
-  float: left;
+  border-radius: 0.5em;
+  /* float: left; */
   position: absolute;
+  width: 240px;
+  height: 180px;
   /* z-index: 10; */
   /* ^ not sure if needed or not */
 }

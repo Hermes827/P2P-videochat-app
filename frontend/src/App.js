@@ -17,6 +17,7 @@ class App extends React.Component {
     }
 
     this.makeCall = this.makeCall.bind(this)
+    this.returnHome = this.returnHome.bind(this)
   }
 
   makeCall(){
@@ -45,9 +46,16 @@ class App extends React.Component {
   renderMakeCall(){
     if(this.state.makeCall === true){
       return(
-        <MakeCall/>
+        <MakeCall return={this.returnHome}/>
       )
     }
+  }
+
+  returnHome(){
+    this.setState({
+      jumbotron: true,
+      makeCall: false
+    })
   }
 
   render(){
